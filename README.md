@@ -7,8 +7,6 @@ RKE2, MetalLB, Rancher.
 Upgrade possible, but not tested.
 New node addining possible, but not tested.
 
-Partially based on: [/ansible-role-rke2](https://github.com/lablabs/ansible-role-rke2)
-
 ## Preparing env to run ansible
 
 1. Clone repository to your local machine
@@ -66,3 +64,11 @@ Deploy k8s:
 ```shell
 ./run_playbook.sh -i inventories/main -i inventories/devel/rke2-devel-0.yml deploy-rke2-nodes-devel.yml
 ```
+
+## License
+
+MIT
+
+## External Author Information
+
+RKE part based on [Labyrinth Labs](https://github.com/lablabs/ansible-role-rke2).
