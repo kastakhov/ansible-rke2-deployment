@@ -1,0 +1,74 @@
+---
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Install packages
+  ansible.builtin.package:
+    name: keepalived
+    state: present
+
+- name: Get main interface name
+  ansible.builtin.set_fact:
+    main_interface: "{{ hostvars[inventory_hostname]['ansible_' + interface]['device'] }}"
+  with_items: "{{ ansible_interfaces }}"
+  when:
+    - hostvars[inventory_hostname]['ansible_' + interface].ipv4 is defined
+    - hostvars[inventory_hostname]['ansible_' + interface]['ipv4']['address'] == hostvars[inventory_hostname]['vars'].IPv4
+  loop_control:
+    loop_var: interface
+
+- name: Create directory for keepalived
+  ansible.builtin.file:
+    path: /etc/keepalived
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create Kubernetes API health check script
+  ansible.builtin.template:
+    src: keepalived/check_apiserver_{{ ip_version }}.sh.j2
+    dest: /etc/keepalived/check_apiserver_{{ ip_version }}.sh
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - v4
+    - v6
+  loop_control:
+    loop_var: ip_version
+  notify: Restart keepalived
+
+- name: Create RKE2 Server health check script
+  ansible.builtin.template:
+    src: keepalived/check_rke2server_{{ ip_version }}.sh.j2
+    dest: /etc/keepalived/check_rke2server_{{ ip_version }}.sh
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - v4
+    - v6
+  loop_control:
+    loop_var: ip_version
+  notify: Restart keepalived
+
+- name: Create keepalived config file
+  ansible.builtin.template:
+    src: keepalived/keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart keepalived
+
+- name: Enable keepalived and make sure it is not masked
+  ansible.builtin.systemd:
+    name: keepalived
+    enabled: true
+    masked: false
+  notify: Restart keepalived
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers

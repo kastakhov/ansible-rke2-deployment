@@ -1,0 +1,7 @@
+---
+# VMware vCenter
+VMWARE_VC_URL: "vsphere.local"
+VMWARE_VALIDATE_CERTS: false
+VMWARE_DC: "DC"
+VMWARE_CLUSTER: "VSAN"
+VMWARE_VM_DATASTORE: "vsanDatastore"

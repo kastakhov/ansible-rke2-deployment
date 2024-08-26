@@ -1,0 +1,96 @@
+---
+- name: Get current version
+  ansible.builtin.command: >-
+    /usr/local/bin/helm version --client --template
+    {{ "'{{ if .Version }}{{ .Version }}{{ else }}{{ .Client.SemVer }}{{ end }}'" }}
+  register: helm_current_version
+  failed_when: false
+  changed_when: false
+
+- name: Set reinstall flag if helm version is different
+  ansible.builtin.set_fact:
+    REINSTALL_HELM: "{{ helm_current_version.stdout != HELM_VERSION }}"
+  when:
+    - helm_current_version.rc == 0
+
+- name: Get helm tarball name
+  ansible.builtin.set_fact:
+    helm_redis_filename: "helm-{{ HELM_VERSION }}-linux-amd64.tar.gz"
+  when:
+    - REINSTALL_HELM | default(true)
+
+- name: Create temporary directory
+  ansible.builtin.file:
+    path: '/tmp/helm'
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when:
+    - REINSTALL_HELM | default(true)
+
+- name: Download helm sha256sum
+  ansible.builtin.get_url:
+    url: 'https://get.helm.sh/{{ helm_redis_filename }}.sha256'
+    dest: '/tmp/helm/{{ helm_redis_filename }}.sha256'
+    force: true
+    validate_certs: true
+    mode: "0644"
+  when:
+    - REINSTALL_HELM | default(true)
+
+- name: Read helm sha256sum
+  ansible.builtin.slurp:
+    src: '/tmp/helm/{{ helm_redis_filename }}.sha256'
+  register: helm_sha256sum
+  when:
+    - REINSTALL_HELM | default(true)
+
+- name: Download helm tarball
+  ansible.builtin.get_url:
+    url: 'https://get.helm.sh/{{ helm_redis_filename }}'
+    dest: '/tmp/helm/{{ helm_redis_filename }}'
+    checksum: 'sha256:{{ helm_sha256sum.content | b64decode | trim }}'
+    force: true
+    validate_certs: true
+    mode: "0644"
+  when:
+    - REINSTALL_HELM | default(true)
+
+- name: Unpack helm tarball
+  ansible.builtin.unarchive:
+    src: '/tmp/helm/{{ helm_redis_filename }}'
+    remote_src: true
+    dest: '/tmp/helm'
+    extra_opts:
+      - '--strip-components=1'
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - REINSTALL_HELM | default(true)
+
+- name: Remove existing installation
+  ansible.builtin.file:
+    path: '/usr/local/bin/helm'
+    state: absent
+  when:
+    - REINSTALL_HELM | default(true)
+
+- name: Move helm binary to /usr/local/bin
+  ansible.builtin.copy:
+    src: '/tmp/helm/helm'
+    dest: '/usr/local/bin/helm'
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+  when:
+    - REINSTALL_HELM | default(true)
+
+- name: Remove temporary directory
+  ansible.builtin.file:
+    path: '/tmp/helm'
+    state: absent
+  when:
+    - REINSTALL_HELM | default(true)

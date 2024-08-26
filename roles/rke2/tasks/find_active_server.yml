@@ -1,0 +1,15 @@
+---
+- name: Populate services facts
+  ansible.builtin.service_facts:
+
+- name: Set the Active Server variable
+  ansible.builtin.set_fact:
+    active_server: "{{ inventory_hostname }}"
+  delegate_facts: true
+  delegate_to: "{{ rke2_server }}"
+  with_items: "{{ groups['control_nodes'] }}"
+  loop_control:
+    loop_var: rke2_server
+  when:
+    - inventory_hostname in groups['control_nodes']
+    - ansible_facts.services["rke2-server.service"].state == "running"

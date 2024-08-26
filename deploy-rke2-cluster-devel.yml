@@ -1,0 +1,5 @@
+- name: Deploy development rke2 cluster from scratch
+  hosts: rke2_devel
+  gather_facts: true
+  roles:
+    - "rke2"

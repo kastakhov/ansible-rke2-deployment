@@ -1,0 +1,21 @@
+---
+- name: Restart keepalived
+  ansible.builtin.service:
+    name: keepalived
+    state: restarted
+
+- name: Restart systemd-sysctl
+  ansible.builtin.service:
+    state: restarted
+    name: systemd-sysctl
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: RKE2 Config file changed
+  ansible.builtin.set_fact:
+    RKE2_RESTART_NEEDED: true
+
+- name: RKE2 Service (re)started
+  ansible.builtin.set_fact:
+    RKE2_RESTART_NEEDED: false

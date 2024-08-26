@@ -1,0 +1,24 @@
+---
+- name: Executing Upgrade packages task
+  ansible.builtin.include_tasks: upgrade-packages.yml
+  args:
+    apply:
+      delegate_to: "{{ INSTANCE_ADDRESS }}"
+      become: true
+  when: "'upgrade' in TASKS_TO_EXECUTE"
+
+- name: Executing Add users task
+  ansible.builtin.include_tasks: add-users.yml
+  args:
+    apply:
+      delegate_to: "{{ INSTANCE_ADDRESS }}"
+      become: true
+  when: "'users' in TASKS_TO_EXECUTE"
+
+- name: Executing Configure ISCSI task
+  ansible.builtin.include_tasks: configure-iscsi.yml
+  args:
+    apply:
+      delegate_to: "{{ INSTANCE_ADDRESS }}"
+      become: true
+  when: "'iscsi' in TASKS_TO_EXECUTE"

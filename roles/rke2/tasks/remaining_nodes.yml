@@ -1,0 +1,73 @@
+---
+- name: Create the RKE2 config dir
+  ansible.builtin.file:
+    state: directory
+    path: /etc/rancher/rke2
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Set server taints
+  ansible.builtin.set_fact:
+    combined_node_taints: "{{ RKE2_SERVER_NODE_TAINTS }}"
+  when: NODE_TYPE == "server"
+
+- name: Set agent taints
+  ansible.builtin.set_fact:
+    combined_node_taints: "{{ RKE2_AGENT_NODE_TAINTS }}"
+  when: NODE_TYPE == "agent"
+
+- name: Copy RKE2 config
+  ansible.builtin.template:
+    src: "rke2_{{ NODE_TYPE }}_config.yml.j2"
+    dest: /etc/rancher/rke2/config.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  notify: "RKE2 Config file changed"
+
+- name: Copy Containerd Registry Configuration file
+  ansible.builtin.template:
+    src: "rke2_custom_registries.yaml.j2"
+    dest: /etc/rancher/rke2/registries.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  when: (RKE2_CUSTOM_REGISTRY_MIRRORS | length > 0 or RKE2_CUSTOM_REGISTRY_CONFIGS | length > 0)
+  notify: "RKE2 Config file changed"
+
+- name: Start RKE2 service on the rest of the nodes
+  ansible.builtin.systemd:
+    name: "rke2-{{ NODE_TYPE }}.service"
+    state: started
+    enabled: true
+  retries: 10
+  delay: 3
+  register: result
+  until: result is not failed
+  environment:
+    RKE2_TOKEN: "{{ RKE2_TOKEN }}"
+  notify: "RKE2 Service (re)started"
+
+- name: Mask other RKE2 service on the rest of the nodes
+  ansible.builtin.systemd:
+    name: "rke2-{{ item }}.service"
+    enabled: false
+    masked: true
+  with_items:
+    - "{{ (['agent', 'server'] | reject('match', NODE_TYPE) | list) }}"
+
+- name: Wait for remaining nodes to be ready - with CNI
+  ansible.builtin.shell: |
+    set -o pipefail
+    {{ RKE2_DATA_PATH }}/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml get nodes | grep " Ready" | wc -l
+  args:
+    executable: /bin/bash
+  changed_when: false
+  register: all_ready_nodes
+  until:
+    - groups['rke2_' + DEPLOYMENT_ENV] | length == all_ready_nodes.stdout | int
+  retries: 100
+  delay: 15
+  delegate_to: "{{ active_server | default(MASTER_NODE) }}"
+  run_once: true

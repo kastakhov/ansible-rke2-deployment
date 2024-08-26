@@ -1,0 +1,20 @@
+---
+# URL to RKE2 repository
+RKE2_CHANNEL_URL: https://update.rke2.io/v1-release/channels
+
+# URL to RKE2 install bash script
+RKE2_INSTALL_BASH_URL: https://get.rke2.io
+
+# Local data directory for RKE2
+RKE2_DATA_PATH: /var/lib/rancher/rke2
+
+RKE2_CONFIG_PATH: /etc/rancher/rke2
+
+# Destination directory for RKE2 installation script
+RKE2_TMP_DOWNLOAD_DIR: /var/tmp/rke2
+
+# RKE2 install method
+RKE2_METHOD: tar
+
+# API Server destination port
+RKE2_APISERVER_DST_PORT: 6443

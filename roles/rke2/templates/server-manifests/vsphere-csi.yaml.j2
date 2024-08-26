@@ -1,0 +1,17 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: rancher-vsphere-csi
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    vCenter:
+      host: "{{ VSPHERE.host }}"
+      port: {{ VSPHERE.port }}
+      insecureFlag: "{{ VSPHERE.insecure }}"
+      clusterId: "{{ VSPHERE.cluster }}"
+      datacenters: "{{ VSPHERE.datacenter }}"
+      username: "{{ VSPHERE.user }}"
+      password: "{{ VSPHERE.password }}"
+      labels:
+        topology-categories: "{{ VSPHERE.labels.values() | join(',') }}"

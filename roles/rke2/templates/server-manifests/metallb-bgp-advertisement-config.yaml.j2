@@ -1,0 +1,25 @@
+{% for pool in METALLB.IP_POOLS %}
+{% if pool.deployment_id|int == DEPLOYMENT_ID|int %}
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: {{ pool.name }}
+  namespace: metallb-system
+spec:
+  addresses:
+{% for ip_range in pool.ip_ranges %}
+    - {{ ip_range }}
+{% endfor %}
+---
+apiVersion: metallb.io/v1beta1
+kind: BGPAdvertisement
+metadata:
+  name: advertisement-{{ pool.name }}
+  namespace: metallb-system
+spec:
+  avoidBuggyIPs: true
+  ipAddressPools:
+    - {{ pool.name }}
+{% endif %}
+{% endfor %}

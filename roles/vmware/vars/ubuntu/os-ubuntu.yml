@@ -1,0 +1,125 @@
+---
+VM_PUBLIC_KEYS: ""
+VM_USER_DATA: |+
+  #cloud-config
+  runcmd:
+    - [ userdel, --remove, ubuntu ]
+    - [ rm, -rf, /home/ubuntu]
+  ntp:
+    enabled: true
+  timezone: Etc/UTC
+  disable_root: true
+  users:
+    - name: ansible
+      gecos: Ansible User
+      groups: users,admin,sudo
+      sudo: ALL=(ALL) NOPASSWD:ALL
+      shell: /usr/bin/bash
+      lock_passwd: true
+      ssh_authorized_keys:
+        - "ssh-ed25519 CHANGE_ME ansible@local"
+  package_update: true
+  package_upgrade: true
+  packages:
+    - apt-transport-https
+    - ca-certificates
+    - curl
+    - dpkg
+    - gawk
+    - gnupg
+    - gpg
+    - grep
+    - htop
+    - iotop
+    - nfs-common
+    - nmap
+    - open-iscsi
+    - procps
+    - python3-apt
+    - software-properties-common
+    - tmux
+    - tzdata
+    - util-linux
+    - wget
+    - xz-utils
+  write_files:
+    - path: /etc/default/grub
+      content: |
+        GRUB_DEFAULT=0
+        GRUB_TIMEOUT_STYLE=hidden
+        GRUB_TIMEOUT=0
+        GRUB_DISTRIBUTOR=`lsb_release -i -s 2> /dev/null || echo Debian`
+        GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"
+        GRUB_CMDLINE_LINUX="net.ifnames=0"
+      permissions: '0644'
+    - path: /etc/systemd/networkd.conf
+      content: |
+        [Network]
+
+        [DHCPv4]
+        DUIDType=link-layer-time
+
+        [DHCPv6]
+        DUIDType=link-layer-time
+      permissions: '0644'
+    - path: /etc/needrestart/conf.d/disable_service_restart.conf
+      content: |
+        $nrconf{restart} = 'l';
+      permissions: '0644'
+    - path: /etc/modprobe.d/blacklist-floppy.conf
+      content: |
+        blacklist floppy
+      permissions: '0644'
+    - path: /etc/systemd/network/00-eth0.network
+      content: |
+        [Match]
+        Name=eth*
+
+        [Network]
+        DHCP=no
+        DNS=1.1.1.1
+        DNS=1.0.0.1
+        DNS=2606:4700:4700::1111
+        DNS=2606:4700:4700::1001
+        LinkLocalAddressing=ipv6
+        IPv6AcceptRA=yes
+
+        [Address]
+        Address={{ INSTANCE_IPv4_ADDRESS }}/{{ INSTANCE_IPv4_MASK }}
+
+        [Route]
+        Gateway={{ INSTANCE_IPv4_GATEWAY }}
+
+        [Address]
+        Address={{ INSTANCE_IPv6_ADDRESS }}/{{ INSTANCE_IPv6_MASK }}
+
+        [Route]
+        Gateway={{ INSTANCE_IPv6_GATEWAY }}
+      permissions: '0644'
+    - path: /etc/systemd/network/00-ethX.network
+      content: |
+        [Match]
+        Name=eth*
+
+        [Network]
+        DHCP=yes
+        LinkLocalAddressing=ipv6
+        IPv6AcceptRA=yes
+
+        [DHCP]
+        RouteMetric=100
+        UseMTU=true
+      permissions: '0644'
+    - path: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+      content: |
+        network: {config: disabled}
+      permissions: '0644'
+  runcmd:
+    - [ dpkg-reconfigure, initramfs-tools ]
+    - [ update-grub ]
+  power_state:
+    delay: "+2"
+    mode: poweroff
+    message: Deployment done
+    timeout: 30
+    condition: True

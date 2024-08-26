@@ -1,0 +1,87 @@
+---
+- name: Load common RKE2 variables
+  ansible.builtin.include_vars:
+    dir: vars/common
+    extensions:
+      - yml
+  run_once: true
+
+- name: Set host environment type
+  ansible.builtin.set_fact:
+    DEPLOYMENT_ENV: "{{ hostvars[inventory_hostname].ENV }}"
+  run_once: true
+
+- name: Set deployment id
+  ansible.builtin.set_fact:
+    DEPLOYMENT_ID: "{{ hostvars[inventory_hostname].DEPLOYMENT_ID }}"
+  run_once: true
+
+- name: Set host deployment type
+  ansible.builtin.set_fact:
+    NODE_TYPE: "{{ hostvars[inventory_hostname]['vars'].RKE2_TYPE }}"
+
+- name: Set master node
+  ansible.builtin.set_fact:
+    MASTER_NODE: "{{ node }}"
+  loop: "{{ groups['rke2_' + DEPLOYMENT_ENV] }}"
+  loop_control:
+    loop_var: node
+  when: hostvars[node]['vars'].FIRST_MASTER is defined
+  run_once: true
+
+- name: Load RKE2 variables for {{ DEPLOYMENT_ENV }}
+  ansible.builtin.include_vars:
+    dir: vars
+    files_matching: "rke2-{{ DEPLOYMENT_ENV }}.yml"
+  run_once: true
+
+- name: Prepare host environment
+  ansible.builtin.include_tasks: prepare-host-env.yml
+
+- name: Install Keepalived
+  ansible.builtin.include_tasks: install-keepalived.yml
+  when:
+    - inventory_hostname in groups['control_nodes']
+
+- name: Download and install RKE2 {{ RKE2_VERSION }}
+  ansible.builtin.include_tasks: install-rke2.yml
+
+- name: Find Active Server
+  ansible.builtin.include_tasks: find_active_server.yml
+
+- name: Prepare very first server node in the cluster
+  ansible.builtin.include_tasks: first_server.yml
+  when:
+    - inventory_hostname == MASTER_NODE
+    - active_server is not defined
+
+- name: Prepare and join remaining nodes of the cluster
+  ansible.builtin.include_tasks: remaining_nodes.yml
+  when:
+    - active_server is defined
+    - groups['rke2_' + DEPLOYMENT_ENV] | length | int >= 2
+
+- name: Rolling cordon and drain restart when version changes
+  ansible.builtin.include_tasks: rolling_restart.yml
+  with_items: "{{ groups['rke2_' + DEPLOYMENT_ENV] }}"
+  loop_control:
+    loop_var: node
+  when:
+    - hostvars[node].inventory_hostname == inventory_hostname
+    - installed_version != "not installed"
+    - RKE2_VERSION != running_version
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Rolling restart when config files change
+  ansible.builtin.include_tasks: change_config.yml
+  with_items: "{{ groups['rke2_' + DEPLOYMENT_ENV] }}"
+  loop_control:
+    loop_var: node
+  when:
+    - hostvars[node].inventory_hostname == inventory_hostname
+    - RKE2_RESTART_NEEDED
+
+- name: Final steps
+  ansible.builtin.include_tasks: summary.yml

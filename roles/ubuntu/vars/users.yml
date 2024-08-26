@@ -1,0 +1,7 @@
+---
+USERS:
+  - USERNAME: admin
+    PUBKEYS:
+      - ssh-ed25519 CHANGE_ME admin@local1
+      - ssh-ed25519 CHANGE_ME admin@local2
+    GROUPS: "adm, sudo, users"

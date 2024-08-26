@@ -1,0 +1,26 @@
+---
+- name: Power on VM
+  community.vmware.vmware_guest:
+    hostname: '{{ VMWARE_VC_URL }}'
+    username: '{{ VMWARE_VC_USER }}'
+    password: '{{ VMWARE_VC_PASSWORD }}'
+    validate_certs: '{{ VMWARE_VALIDATE_CERTS }}'
+    cluster: '{{ VMWARE_CLUSTER }}'
+    datacenter: '{{ VMWARE_DC }}'
+    name: '{{ VMWARE_VM_NAME }}'
+    datastore: '{{ VMWARE_VM_DATASTORE }}'
+    folder: '/{{ VMWARE_DC }}/vm/{{ VMWARE_VM_PARRENT_FOLDER }}/{{ VMWARE_VM_FOLDER }}'
+    state: poweredon
+
+- name: Waiting until VM will be powered off (max 10 minutes)
+  community.vmware.vmware_guest_info:
+    hostname: '{{ VMWARE_VC_URL }}'
+    username: '{{ VMWARE_VC_USER }}'
+    password: '{{ VMWARE_VC_PASSWORD }}'
+    validate_certs: '{{ VMWARE_VALIDATE_CERTS }}'
+    datacenter: '{{ VMWARE_DC }}'
+    moid: '{{ INSTANCE_MOID }}'
+  register: VM_POWER_STATE
+  delay: 10
+  retries: 60
+  until: VM_POWER_STATE.instance.hw_power_status == "poweredOn"

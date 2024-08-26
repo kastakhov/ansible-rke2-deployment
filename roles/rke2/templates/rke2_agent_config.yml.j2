@@ -1,0 +1,18 @@
+server: https://rke2-{{ DEPLOYMENT_ENV }}-{{ DEPLOYMENT_ID }}.{{ INTERNAL_DOMAIN }}:9345
+token: {{ RKE2_TOKEN }}
+node-name: {{ inventory_hostname }}
+{% if (RKE2_NODE_LABELS is defined and RKE2_NODE_LABELS|length > 0) %}
+node-label:
+{% for label in RKE2_NODE_LABELS %}
+  - {{ label }}
+{% endfor %}
+{% endif %}
+node-ip:
+  - {{ hostvars[inventory_hostname]['vars'].IPv4 }}
+  - {{ hostvars[inventory_hostname]['vars'].IPv6 }}
+{% if ( DISABLE_KUBE_PROXY | bool ) %}
+disable-kube-proxy: true
+{% endif %}
+{% if RKE2_DEBUG %}
+debug: true
+{% endif %}

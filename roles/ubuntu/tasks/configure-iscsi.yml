@@ -1,0 +1,44 @@
+---
+- name: Install open-iscsi
+  ansible.builtin.apt:
+    name: open-iscsi
+    state: present
+
+- name: Stop iscsid service
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+    name: iscsid
+    state: stopped
+
+- name: Generate random string for UUID
+  ansible.builtin.set_fact:
+    iscsiuid: "{{ lookup('community.general.random_string', length=12, upper=false, numbers=true, special=false) }}"
+
+- name: Set templatized iSCSI Config with unique initiator name
+  ansible.builtin.template:
+    src: "initiatorname.iscsi.conf.j2"
+    dest: "/etc/iscsi/initiatorname.iscsi"
+    force: true
+    backup: true
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Restart iscsid service
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+    enabled: true
+    masked: false
+    name: iscsid
+    state: restarted
+
+- name: Get iscsid status
+  ansible.builtin.systemd:
+    name: iscsid
+  register: iscsid_status
+
+- name: Display iscsid status
+  ansible.builtin.debug:
+    msg:
+      - "iscsid current status is {{ iscsid_status.status.ActiveState }}"
+      - "iscsid unit status is {{ iscsid_status.status.UnitFileState }}"

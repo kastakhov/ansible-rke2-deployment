@@ -1,0 +1,47 @@
+---
+- name: Load users env file
+  ansible.builtin.include_vars:
+    dir: vars
+    files_matching: users.yml
+
+- name: Add linux groups
+  ansible.builtin.group:
+    name: '{{ user.USERNAME }}'
+    state: present
+  loop: '{{ USERS }}'
+  loop_control:
+    loop_var: user
+
+- name: Add linux users
+  ansible.builtin.user:
+    append: true
+    create_home: true
+    group: '{{ user.USERNAME }}'
+    groups: '{{ user.GROUPS }}'
+    name: '{{ user.USERNAME }}'
+    shell: "/usr/bin/bash"
+    state: present
+  loop: '{{ USERS }}'
+  loop_control:
+    loop_var: user
+
+- name: Set up authorized keys for users
+  ansible.posix.authorized_key:
+    user: '{{ user.USERNAME }}'
+    state: present
+    key: "{{ user.PUBKEYS | join('\n') }}"
+  loop: '{{ USERS }}'
+  loop_control:
+    loop_var: user
+
+- name: Add users into sudoers with no password
+  ansible.builtin.template:
+    src: "sudoers_user.j2"
+    dest: "/etc/sudoers.d/{{ user.USERNAME }}"
+    force: true
+    owner: root
+    group: root
+    mode: "0640"
+  loop: '{{ USERS }}'
+  loop_control:
+    loop_var: user

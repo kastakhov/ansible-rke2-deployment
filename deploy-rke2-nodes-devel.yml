@@ -1,0 +1,45 @@
+---
+- name: Deploy nodes for development rke2 cluster from scratch
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Deploy VMs
+      ansible.builtin.include_role:
+        name: "vmware"
+      with_items:
+        - "{{ groups['rke2_devel'] }}"
+      loop_control:
+        loop_var: rke2_host
+      vars:
+        BASE_OS: ubuntu
+        LOAD_LOCAL_VARS: false
+        CLUSTER_NAME: "{{ hostvars[rke2_host]['CLUSTER_NAME'] }}"
+        VMWARE_VM_PARRENT_FOLDER: "{{ hostvars[rke2_host]['VMWARE_VM_PARRENT_FOLDER'] }}"
+        VMWARE_VM_FOLDER: "{{ hostvars[rke2_host]['VMWARE_VM_FOLDER'] }}"
+        VMWARE_VM_NETWORK_LABEL: "{{ hostvars[rke2_host]['VMWARE_VM_NETWORK_LABEL'] }}"
+        VMWARE_VM_NAME: "{{ hostvars[rke2_host]['ansible_hostname'] }}"
+        VM_HOSTNAME: "{{ hostvars[rke2_host]['ansible_hostname'] }}"
+        VM_RAM_SIZE: "{{ hostvars[rke2_host]['VM_RAM_SIZE'] }}"
+        VM_CPU_COUNT: "{{ hostvars[rke2_host]['VM_CPU_COUNT'] }}"
+        VM_CPU_PER_SOCKET: "{{ hostvars[rke2_host]['VM_CPU_PER_SOCKET'] }}"
+        VM_DISK_SIZE: "{{ hostvars[rke2_host]['VM_DISK_SIZE'] }}"
+        USE_PREDEFINED_IP: true
+        INSTANCE_IPv4_ADDRESS: "{{ hostvars[rke2_host]['vars']['IPv4'] }}"
+        INSTANCE_IPv4_MASK: "{{ hostvars[rke2_host]['vars']['IPv4_MASK'] }}"
+        INSTANCE_IPv4_GATEWAY: "{{ hostvars[rke2_host]['vars']['IPv4_GW'] }}"
+        INSTANCE_IPv6_ADDRESS: "{{ hostvars[rke2_host]['vars']['IPv6'] }}"
+        INSTANCE_IPv6_MASK: "{{ hostvars[rke2_host]['vars']['IPv6_MASK'] }}"
+        INSTANCE_IPv6_GATEWAY: "{{ hostvars[rke2_host]['vars']['IPv6_GW'] }}"
+    - name: Basic configuration
+      ansible.builtin.include_role:
+        name: "ubuntu"
+      with_items:
+        - "{{ groups['rke2_devel'] }}"
+      loop_control:
+        loop_var: rke2_host
+      vars:
+        INSTANCE_ADDRESS: "{{ hostvars[rke2_host]['vars']['IPv6'] }}"
+        TASKS_TO_EXECUTE:
+          - "upgrade"
+          - "users"
+          - "iscsi"

@@ -1,0 +1,15 @@
+#!/bin/sh
+errorExit() {
+    echo "*** $*" 1>&2
+    exit 1
+}
+
+curl --silent --max-time 2 \
+    --insecure https://ip6-localhost:9345/ \
+    -o /dev/null || errorExit "Error GET https://ip6-localhost:9345/"
+
+if ip addr | grep -wq {{hostvars[inventory_hostname].VIP_IPv6}}; then
+    curl --silent --max-time 2 \
+        --insecure https://[{{hostvars[inventory_hostname].VIP_IPv6}}]:9345/ \
+        -o /dev/null || errorExit "Error GET https://[{{hostvars[inventory_hostname].VIP_IPv6}}]:9345/"
+fi

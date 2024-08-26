@@ -1,0 +1,9 @@
+aiohttp
+ansible-core>=2.16.0, == 2.16.*
+ansible-lint
+ansible-pylibssh
+ansible>=9.1.0, == 9.1.*
+netaddr
+pyvmomi>=8.0.0.0
+requests
+wheel

@@ -1,0 +1,17 @@
+127.0.0.1 localhost
+
+# The following lines are desirable for IPv6 capable hosts
+::1     ip6-localhost ip6-loopback
+fe00::0 ip6-localnet
+ff00::0 ip6-mcastprefix
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+
+{{ hostvars[inventory_hostname].VIP_IPv4 }} rke2-{{ DEPLOYMENT_ENV }}-{{ DEPLOYMENT_ID }}.{{ INTERNAL_DOMAIN }} rke2-{{ DEPLOYMENT_ENV }}-{{ DEPLOYMENT_ID }}.{{ EXTERNAL_DOMAIN }}
+{{ hostvars[inventory_hostname].VIP_IPv6 }} rke2-{{ DEPLOYMENT_ENV }}-{{ DEPLOYMENT_ID }}.{{ INTERNAL_DOMAIN }} rke2-{{ DEPLOYMENT_ENV }}-{{ DEPLOYMENT_ID }}.{{ EXTERNAL_DOMAIN }}
+
+{% for host in groups['rke2_' + DEPLOYMENT_ENV] %}
+{{ hostvars[host]['vars'].IPv4 }} {{ hostvars[host].inventory_hostname_short }}
+{{ hostvars[host]['vars'].IPv6 }} {{ hostvars[host].inventory_hostname_short }}
+{% endfor %}
+

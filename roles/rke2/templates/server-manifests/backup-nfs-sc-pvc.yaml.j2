@@ -1,0 +1,35 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: backup-nfs-csi
+  labels:
+    k8slens-edit-resource-version: v1
+  annotations:
+    field.cattle.io/description: Slow NFS Storage for backups
+  managedFields:
+    - manager: rancher
+      operation: Update
+      apiVersion: storage.k8s.io/v1
+provisioner: nfs.csi.k8s.io
+parameters:
+  server: {{ NFS_SERVER.host }}
+  share: {{ NFS_SERVER.path }}
+reclaimPolicy: Retain
+mountOptions:
+  - nfsvers=4.2
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backup-nfs-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: backup-nfs-csi
+  volumeMode: Filesystem

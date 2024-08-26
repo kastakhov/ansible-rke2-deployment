@@ -1,0 +1,40 @@
+---
+
+- name: Download RKE2 kubeconfig to localhost
+  ansible.builtin.fetch:
+    src: /etc/rancher/rke2/rke2.yaml
+    dest: "{{ RKE2_DOWNLOAD_KUBECONF_PATH }}/{{ RKE2_DOWNLOAD_KUBECONF_FILE_NAME }}"
+    flat: true
+  delegate_to: "{{ MASTER_NODE }}"
+  run_once: true
+  when:
+    - RKE2_DOWNLOAD_KUBECONF | bool
+
+- name: Replace loopback IP by master server IP
+  ansible.builtin.replace:
+    path: "{{ RKE2_DOWNLOAD_KUBECONF_PATH }}/{{ RKE2_DOWNLOAD_KUBECONF_FILE_NAME }}"
+    regexp: '127.0.0.1'
+    replace: "rke2-{{ DEPLOYMENT_ENV }}.local"
+  delegate_to: localhost
+  become: false
+  when:
+    - RKE2_DOWNLOAD_KUBECONF | bool
+
+- name: Summary
+  when: inventory_hostname == MASTER_NODE
+  block:
+    - name: Prepare summary
+      ansible.builtin.shell: |
+        set -e
+        {{ RKE2_DATA_PATH }}/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml get nodes -o wide --show-labels
+      args:
+        executable: /bin/bash
+      changed_when: false
+      run_once: true
+      retries: 5
+      register: nodes_summary
+
+    - name: K8s nodes state
+      ansible.builtin.debug:
+        var: nodes_summary.stdout_lines
+      run_once: true

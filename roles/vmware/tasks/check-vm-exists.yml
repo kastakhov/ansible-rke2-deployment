@@ -1,0 +1,18 @@
+---
+- name: Check if the VM already exists
+  community.vmware.vmware_guest_find:
+    hostname: '{{ VMWARE_VC_URL }}'
+    username: '{{ VMWARE_VC_USER }}'
+    password: '{{ VMWARE_VC_PASSWORD }}'
+    validate_certs: '{{ VMWARE_VALIDATE_CERTS }}'
+    name: '{{ VMWARE_VM_NAME }}'
+  register: _vm_esists
+  ignore_errors: true
+
+- name: Set fact about VM existence
+  ansible.builtin.set_fact:
+    VM_EXISTS: '{{ _vm_esists.folders is defined }}'
+
+- name: Print VM exists
+  ansible.builtin.debug:
+    msg: '{{ VM_EXISTS }}'

@@ -1,0 +1,29 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: vsphere-csi-sc-custom
+  labels:
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: vsphere-csi
+    meta.helm.sh/release-namespace: kube-system
+    storageclass.kubernetes.io/is-default-class: 'true'
+provisioner: csi.vsphere.vmware.com
+parameters:
+  # this palicy manually created in vSphere Policies and Profiles > VM Storage Policies
+  storagepolicyname: ftt-1-vsan-eq
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vsphere-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: vsphere-csi-sc-custom

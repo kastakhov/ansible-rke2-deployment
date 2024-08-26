@@ -1,0 +1,19 @@
+---
+vmware:
+  children:
+    vmware_vcenter:
+      hosts:
+        vsphere.local:
+          ansible_host: 127.0.0.1
+          ansible_hostname: vsphere.local
+    vmware_esxi:
+      hosts:
+        esx1.local:
+          ansible_host: 127.0.0.1
+          ansible_hostname: esx1.local
+        esx1.local:
+          ansible_host: 127.0.0.1
+          ansible_hostname: esx2.local
+        esx1.local:
+          ansible_host: 127.0.0.1
+          ansible_hostname: esx3.local

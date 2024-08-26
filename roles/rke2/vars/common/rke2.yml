@@ -1,0 +1,81 @@
+---
+RKE2_TOKEN: CHANGE_ME
+
+RKE2_CNI:
+  - cilium
+
+DISABLE_KUBE_PROXY: true
+
+# Do not deploy packaged components and delete any deployed components
+# Valid items: rke2-canal, rke2-coredns, rke2-ingress-nginx, rke2-metrics-server
+RKE2_DISABLE:
+  - rke2-kube-proxy
+  - rke2-canal
+
+# Path to custom manifests deployed during the RKE2 installation
+# It is possible to use Jinja2 templating in the manifests
+RKE2_CUSTOM_MANIFESTS:
+  - cilium-cni.yaml
+  - metallb.yaml
+  - metallb-bgp-advertisement-config.yaml
+  - metallb-bgp-peers-config.yaml
+  - vsphere-csi.yaml
+  - vsphere-cpi.yaml
+  - vsphere-vsan-sc-pvc.yaml
+  - rancher-config.yaml
+  - rancher-loadbalancer-config.yaml
+
+RKE2_CUSTOM_MANIFESTS_FROM_URL: []
+
+# Path to static pods deployed during the RKE2 installation
+RKE2_STATIC_PODS:
+
+# (Optional) Configure Proxy
+# All flags can be found here https://docs.rke2.io/advanced#configuring-an-http-proxy
+RKE2_ENV_OPTIONS: []
+# like:
+# - "HTTP_PROXY=http://your-proxy.example.com:8888"
+
+# Server nodes taints
+RKE2_SERVER_NODE_TAINTS:
+  - 'node-role.kubernetes.io/control-plane=:NoSchedule'
+
+# Agent nodes taints
+RKE2_AGENT_NODE_TAINTS: []
+
+RKE2_NODE_LABELS:
+  - 'topology.csi.vmware.com/k8s-region=region-1'
+  - 'topology.csi.vmware.com/k8s-zone=zone-a'
+
+# Configure custom Containerd Registry
+# Temporary disabled
+RKE2_CUSTOM_REGISTRY_MIRRORS: []
+#  - name: docker.io
+#    endpoint:
+#      - https://harbor.local
+#    rewrite: '"^(?:docker.io/)?(.*)": "proxy-docker.io/$1"'
+
+# Configure custom Containerd Registry additional configuration
+RKE2_CUSTOM_REGISTRY_CONFIGS: []
+#   - endpoint:
+#     config:
+
+# Cordon, drain the node which is being upgraded. Uncordon the node once the RKE2 upgraded
+RKE2_DRAIN_NODE_DURING_UPGRADE: false
+
+# Wait for all pods to be ready after rke2-service restart during rolling restart.
+RKE2_WAIT_FOR_ALL_PODS_TO_BE_READY: false
+
+RKE2_REBOOT_AFTER_KERNEL_UPGRADE: false
+
+RKE2_RESTART_NEEDED: false
+
+# Download kubeconfig to localhost
+RKE2_DOWNLOAD_KUBECONF: false
+
+# Path to where kubeconfig will be downloaded
+RKE2_DOWNLOAD_KUBECONF_PATH:
+
+RKE2_DOWNLOAD_KUBECONF_FILE_NAME:
+
+RKE2_DEBUG: false

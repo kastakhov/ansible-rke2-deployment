@@ -1,0 +1,66 @@
+{% if active_server is defined %}
+server: https://rke2-{{ DEPLOYMENT_ENV }}-{{ DEPLOYMENT_ID }}.{{ INTERNAL_DOMAIN }}:9345
+{% endif %}
+token: {{ RKE2_TOKEN }}
+data-dir: {{ RKE2_DATA_PATH }}
+tls-san:
+  - rke2-{{ DEPLOYMENT_ENV }}-{{ DEPLOYMENT_ID }}.{{ EXTERNAL_DOMAIN }}
+  - rke2-{{ DEPLOYMENT_ENV }}-{{ DEPLOYMENT_ID }}.{{ INTERNAL_DOMAIN }}
+  - 127.0.0.1
+  - ::1
+  - localhost
+  - ip6-localhost
+  - {{ hostvars[inventory_hostname].VIP_IPv4 }}
+  - {{ hostvars[inventory_hostname].VIP_IPv6 }}
+{% for host in groups['rke2_' + DEPLOYMENT_ENV] %}
+  - {{ hostvars[host].inventory_hostname_short }}
+{% if hostvars[host].ansible_hostname != hostvars[host].inventory_hostname_short %}
+  - {{ hostvars[host].ansible_hostname }}
+{% endif %}
+  - {{ hostvars[host]['vars'].IPv4 }}
+  - {{ hostvars[host]['vars'].IPv6 }}
+{% endfor %}
+node-name: {{ inventory_hostname }}
+{% if (RKE2_NODE_LABELS is defined and RKE2_NODE_LABELS|length > 0) %}
+node-label:
+{% for label in RKE2_NODE_LABELS %}
+  - {{ label }}
+{% endfor %}
+{% endif %}
+{% if ( combined_node_taints is defined and combined_node_taints|length > 0) %}
+node-taint:
+{% for taint in combined_node_taints %}
+  - {{ taint }}
+{% endfor %}
+{% endif %}
+cluster-cidr:
+  - {{ CLUSTER.IPv4 }}
+  - {{ CLUSTER.IPv6 }}
+service-cidr:
+  - {{ SERVICE.IPv4 }}
+  - {{ SERVICE.IPv6 }}
+node-ip:
+  - {{ hostvars[inventory_hostname]['vars'].IPv4 }}
+  - {{ hostvars[inventory_hostname]['vars'].IPv6 }}
+{% if (RKE2_CNI is defined and RKE2_CNI|length > 0) %}
+cni: 
+{% for cni in RKE2_CNI %}
+  - {{ cni }}
+{% endfor %}
+{% else %}
+cni: none
+{% endif %}
+cloud-provider-name: rancher-vsphere
+{% if ( DISABLE_KUBE_PROXY | bool ) %}
+disable-kube-proxy: true
+{% endif %}
+{% if (RKE2_DISABLE is defined and RKE2_DISABLE|length > 0) %}
+disable: 
+{% for plugin in RKE2_DISABLE %}
+  - {{ plugin }}
+{% endfor %}
+{% endif %}
+{% if RKE2_DEBUG %}
+debug: true
+{% endif %}
+write-kubeconfig-mode: "0644"

@@ -1,0 +1,60 @@
+---
+- name: Install required Helm
+  ansible.builtin.include_tasks: install-helm.yml
+
+- name: Upgrade all packages
+  ansible.builtin.apt:
+    upgrade: true
+    update_cache: true
+
+- name: Install required packages
+  ansible.builtin.apt:
+    name:
+      - ipvsadm
+    state: present
+
+- name: Check if a reboot is needed
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+    get_checksum: false
+    get_attributes: false
+  register: reboot_required_file
+
+- name: Set server hostname
+  ansible.builtin.hostname:
+    name: '{{ inventory_hostname }}'
+    use: systemd
+
+- name: Update hosts file
+  ansible.builtin.template:
+    src: "hosts.j2"
+    dest: "/etc/hosts"
+    force: true
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install sysctl settings
+  ansible.builtin.copy:
+    src: 999-rke2.conf
+    dest: /etc/sysctl.d/999-rke2.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: "Restart systemd-sysctl"
+
+- name: Reboot server
+  ansible.builtin.reboot:
+    msg: "Reboot initiated by Ansible due to kernel updates"
+    connect_timeout: 5
+    reboot_timeout: 600
+    pre_reboot_delay: 0
+    post_reboot_delay: 30
+    test_command: uptime
+  when: 
+    - reboot_required_file.stat.exists
+    - RKE2_REBOOT_AFTER_KERNEL_UPGRADE|default(false)
+    - hostvars[node].inventory_hostname == inventory_hostname
+  with_items: "{{ groups['rke2_' + DEPLOYMENT_ENV] }}"
+  loop_control:
+    loop_var: node

@@ -1,0 +1,12 @@
+---
+VSPHERE:
+  user: "{{ hostvars[groups['vmware'][0]].secrets_rke2_cis_vsphere_user }}"
+  password: "{{ hostvars[groups['vmware'][0]].secrets_rke2_cis_vsphere_password }}"
+  cluster: local
+  host: "{{ hostvars[groups['vmware'][0]].ansible_host }}"
+  port: 443
+  insecure: 1
+  datacenter: DC
+  labels:
+    region: k8s-region
+    zone: k8s-zone

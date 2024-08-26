@@ -1,0 +1,38 @@
+- name: Restart RKE2 service on {{ inventory_hostname }}
+  ansible.builtin.service:
+    name: "rke2-{{ NODE_TYPE }}.service"
+    state: restarted
+  notify: "RKE2 Service (re)started"
+
+- name: Wait for all nodes to be ready again
+  ansible.builtin.shell: |
+    set -o pipefail
+    {{ RKE2_DATA_PATH }}/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml get nodes | grep " Ready" | wc -l
+  args:
+    executable: /bin/bash
+  changed_when: false
+  register: all_ready_nodes
+  until:
+    - groups['rke2_' + DEPLOYMENT_ENV] | length == all_ready_nodes.stdout | int
+  retries: 100
+  delay: 15
+  delegate_to: "{{ active_server | default(MASTER_NODE) }}"
+  run_once: true
+
+- name: Wait for all pods to be ready again
+  ansible.builtin.shell: |
+    set -o pipefail
+    {{ RKE2_DATA_PATH }}/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml get pods -A --field-selector=metadata.namespace!=kube-system | \
+    grep -iE "crash|error|init|terminating" | wc -l
+  args:
+    executable: /bin/bash
+  failed_when: "all_pods_ready.rc not in [ 0, 1 ]"
+  changed_when: false
+  register: all_pods_ready
+  until:
+    '"0" in all_pods_ready.stdout'
+  retries: 100
+  delay: 15
+  delegate_to: "{{ active_server | default(MASTER_NODE) }}"
+  run_once: true
+  when: RKE2_WAIT_FOR_ALL_PODS_TO_BE_READY

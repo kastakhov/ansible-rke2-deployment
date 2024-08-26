@@ -1,0 +1,26 @@
+{% for bfd_profile in METALLB.BFD_PROFILES %}
+---
+apiVersion: metallb.io/v1beta1
+kind: BFDProfile
+metadata:
+  name: {{ bfd_profile.name }}
+  namespace: metallb-system
+spec:
+  receiveInterval: {{ bfd_profile.receive_interval }}
+  transmitInterval: {{ bfd_profile.transmit_interval }}
+{% endfor %}
+{% for peer in METALLB.PEERS %}
+---
+apiVersion: metallb.io/v1beta2
+kind: BGPPeer
+metadata:
+  name: {{ peer.name }}
+  namespace: metallb-system
+spec:
+  myASN: {{ peer.local_as }}
+  peerASN: {{ peer.remote_as }}
+  peerAddress: {{ peer.peer_ip }}
+{% if peer.bfd_profile is defined %}
+  bfdProfile: {{ peer.bfd_profile }}
+{% endif %}
+{% endfor %}

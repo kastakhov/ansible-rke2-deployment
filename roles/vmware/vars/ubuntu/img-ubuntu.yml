@@ -1,0 +1,6 @@
+---
+CLOUD_IMAGE_NAME: "jammy-server-cloudimg-amd64.ova"
+CLOUD_IMAGE_URL: "https://cloud-images.ubuntu.com/jammy/current/{{ CLOUD_IMAGE_NAME }}"
+CLOUD_IMAGE_CHECKSUM_URL: "https://cloud-images.ubuntu.com/jammy/current/SHA256SUMS"
+CLOUD_IMAGE_DESTINATION: "{{ playbook_dir }}/images/{{ CLOUD_IMAGE_NAME }}"
+CLOUD_IMAGE_CHECKSUM_DESTINATION: "{{ playbook_dir }}/images/SHA256SUMS"

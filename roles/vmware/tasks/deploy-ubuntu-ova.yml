@@ -1,0 +1,142 @@
+---
+- name: Convert User-Data to base64
+  ansible.builtin.set_fact:
+    VM_USER_DATA_B64: '{{ VM_USER_DATA | b64encode }}'
+
+- name: Create folder in the VMware inventory
+  community.vmware.vcenter_folder:
+    hostname: '{{ VMWARE_VC_URL }}'
+    username: '{{ VMWARE_VC_USER }}'
+    password: '{{ VMWARE_VC_PASSWORD }}'
+    validate_certs: '{{ VMWARE_VALIDATE_CERTS }}'
+    datacenter_name: '{{ VMWARE_DC }}'
+    folder_name: '{{ VMWARE_VM_FOLDER }}'
+    folder_type: vm
+    parent_folder: '{{ VMWARE_VM_PARRENT_FOLDER }}'
+    state: present
+
+- name: Deploy OVA
+  community.vmware.vmware_deploy_ovf:
+    hostname: '{{ VMWARE_VC_URL }}'
+    username: '{{ VMWARE_VC_USER }}'
+    password: '{{ VMWARE_VC_PASSWORD }}'
+    validate_certs: '{{ VMWARE_VALIDATE_CERTS }}'
+    datacenter: '{{ VMWARE_DC }}'
+    cluster: '{{ VMWARE_CLUSTER }}'
+    folder: '/{{ VMWARE_DC }}/vm/{{ VMWARE_VM_PARRENT_FOLDER }}/{{ VMWARE_VM_FOLDER }}'
+    name: '{{ VMWARE_VM_NAME }}'
+    datastore: '{{ VMWARE_VM_DATASTORE }}'
+    networks: '{u"VM Network":u"{{ VMWARE_VM_NETWORK_LABEL }}"}'
+    ova: '{{ CLOUD_IMAGE_DESTINATION }}'
+    properties:
+      hostname: '{{ VM_HOSTNAME }}'
+      public-keys: '{{ VM_PUBLIC_KEYS }}'
+      user-data: '{{ VM_USER_DATA_B64 }}'
+    power_on: true
+    wait_for_ip_address: true
+  register: _instance
+
+- name: Set instance facts
+  ansible.builtin.set_fact:
+    INSTANCE_MOID: '{{ _instance.instance.moid }}'
+    INSTANCE_HOST: '{{ _instance.instance.hw_esxi_host }}'
+    INSTANCE_MAC_ADDRESS: '{{ _instance.instance.hw_eth0.macaddress }}'
+
+- name: Gather info about the VM
+  community.vmware.vmware_guest_info:
+    hostname: '{{ VMWARE_VC_URL }}'
+    username: '{{ VMWARE_VC_USER }}'
+    password: '{{ VMWARE_VC_PASSWORD }}'
+    validate_certs: '{{ VMWARE_VALIDATE_CERTS }}'
+    datacenter: '{{ VMWARE_DC }}'
+    moid: '{{ INSTANCE_MOID }}'
+  register: _instance
+  delay: 10
+  retries: 12
+  until: _instance.instance.hw_eth0.ipaddresses is not none
+
+# Remove Link Local IPv4 and IPv6 addresses,
+# assume DHCP allocated only one IP address per each type.
+- name: Lookup the VM IP addresses
+  ansible.builtin.set_fact:
+    INSTANCE_IPv4_ADDRESS: >-
+      {{ _instance.instance.hw_eth0.ipaddresses
+        | map('ipv4', 'address')
+        | select('!=', false)
+        | reject('match', '^169\.254\.')
+        | trim
+      }}
+    INSTANCE_IPv6_ADDRESS: >-
+      {{ _instance.instance.hw_eth0.ipaddresses
+        | map('ipv6', 'address')
+        | select('!=', false)
+        | reject('match', '^[Ff][Ee][8-9A-Ba-b][0-9A-Fa-f]:')
+        | trim
+        | lower
+      }}
+  when: not (USE_PREDEFINED_IP|default(false))
+
+- name: Update IPv4 address
+  ansible.builtin.set_fact:
+    INSTANCE_IPv4_ADDRESS: "{{ INSTANCE_IPv4_ADDRESS | last }}"
+  when: not (USE_PREDEFINED_IP|default(false))
+
+- name: Print IPv4 address
+  ansible.builtin.debug:
+    msg: "{{ INSTANCE_IPv4_ADDRESS }}"
+
+- name: Update IPv6 address
+  ansible.builtin.set_fact:
+    INSTANCE_IPv6_ADDRESS: "{{ INSTANCE_IPv6_ADDRESS | last }}"
+  when: not (USE_PREDEFINED_IP|default(false))
+
+- name: Print IPv6 address
+  ansible.builtin.debug:
+    msg: "{{ INSTANCE_IPv6_ADDRESS }}"
+
+- name: Waiting until VM will be powered off (max 10 minutes)
+  community.vmware.vmware_guest_info:
+    hostname: '{{ VMWARE_VC_URL }}'
+    username: '{{ VMWARE_VC_USER }}'
+    password: '{{ VMWARE_VC_PASSWORD }}'
+    validate_certs: '{{ VMWARE_VALIDATE_CERTS }}'
+    datacenter: '{{ VMWARE_DC }}'
+    moid: '{{ INSTANCE_MOID }}'
+  register: VM_POWER_STATE
+  delay: 10
+  retries: 60
+  until: VM_POWER_STATE.instance.hw_power_status == "poweredOff"
+
+- name: Adjust the VM HW parameters
+  community.vmware.vmware_guest:
+    hostname: '{{ VMWARE_VC_URL }}'
+    username: '{{ VMWARE_VC_USER }}'
+    password: '{{ VMWARE_VC_PASSWORD }}'
+    validate_certs: '{{ VMWARE_VALIDATE_CERTS }}'
+    cluster: '{{ VMWARE_CLUSTER }}'
+    datacenter: '{{ VMWARE_DC }}'
+    name: '{{ VMWARE_VM_NAME }}'
+    datastore: '{{ VMWARE_VM_DATASTORE }}'
+    folder: '/{{ VMWARE_DC }}/vm/{{ VMWARE_VM_PARRENT_FOLDER }}/{{ VMWARE_VM_FOLDER }}'
+    state: present
+    hardware:
+      memory_mb: '{{ VM_RAM_SIZE | int * 1024 }}'
+      num_cpus: '{{ VM_CPU_COUNT }}'
+      num_cpu_cores_per_socket: '{{ VM_CPU_PER_SOCKET }}'
+    advanced_settings:
+      - key: "disk.EnableUUID"
+        value: "TRUE"
+
+- name: Resize the VM disk size
+  community.vmware.vmware_guest_disk:
+    hostname: '{{ VMWARE_VC_URL }}'
+    username: '{{ VMWARE_VC_USER }}'
+    password: '{{ VMWARE_VC_PASSWORD }}'
+    validate_certs: '{{ VMWARE_VALIDATE_CERTS }}'
+    datacenter: '{{ VMWARE_DC }}'
+    moid: '{{ INSTANCE_MOID }}'
+    disk:
+      - size_gb: '{{ VM_DISK_SIZE }}'
+        state: present
+        unit_number: 0
+        scsi_controller: 0

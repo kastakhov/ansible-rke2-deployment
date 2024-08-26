@@ -1,0 +1,204 @@
+---
+- name: Create Temporary Download Directory
+  ansible.builtin.file:
+    path: "{{ RKE2_TMP_DOWNLOAD_DIR }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Download RKE2 installation script
+  ansible.builtin.get_url:
+    url: "{{ RKE2_INSTALL_BASH_URL }}"
+    dest: "{{ RKE2_TMP_DOWNLOAD_DIR }}/rke2.sh"
+    mode: "0700"
+
+- name: Populate service facts
+  ansible.builtin.service_facts:
+
+- name: Set RKE2 bin path
+  ansible.builtin.set_fact:
+    rke2_bin_path: "/usr/local/bin/rke2"
+
+- name: Set RKE2 service name
+  ansible.builtin.set_fact:
+    rke2_service_name: "rke2-{{ NODE_TYPE }}.service"
+
+- name: Check RKE2 version
+  ansible.builtin.shell: |
+    set -euo pipefail
+
+    rke2_bin_path="{{ rke2_bin_path }}"
+    rke2_service_name="{{ rke2_service_name }}"
+    rke2_version="{{ RKE2_VERSION }}"
+
+    if [ -f "$rke2_bin_path" ]; then
+      installed_version="$($rke2_bin_path --version | grep -E "rke2 version" | awk '{print $3}')"
+    else
+      installed_version="not installed"
+    fi
+
+    if systemctl is-active --quiet $rke2_service_name && rke2_service_pid=$(systemctl show $rke2_service_name --property MainPID --value); then
+      rke2_bin_path="$(realpath "/proc/$rke2_service_pid/exe")"
+    fi
+
+    # Linux appends the target of removed proc exe with ' (deleted)', making the path unavailable.
+    if [ -f "$rke2_bin_path" ]; then
+      running_version="$($rke2_bin_path --version | grep -E "rke2 version" | awk '{print $3}')"
+    elif [ "$installed_version" = "not installed" ]; then
+      running_version="$rke2_version"
+    else
+      running_version="outdated"
+    fi
+
+    echo "{\"installed_version\":\"$installed_version\",\"running_version\":\"$running_version\"}"
+  args:
+    executable: /usr/bin/bash
+  changed_when: false
+  register: versions_check
+
+- name: Set RKE2 versions
+  ansible.builtin.set_fact:
+    installed_version: "{{ versions.installed_version }}"
+    running_version: "{{ versions.running_version }}"
+  vars:
+    versions: "{{ versions_check.stdout | from_json }}"
+
+- name: Print RKE2 versions
+  ansible.builtin.debug:
+    msg: "RKE2 installed version: {{ installed_version }}, running version: {{ running_version }}, requires version: {{ RKE2_VERSION }}"
+
+- name: Run RKE2 script
+  ansible.builtin.command:
+    cmd: "{{ RKE2_TMP_DOWNLOAD_DIR }}/rke2.sh"
+  environment:
+    INSTALL_RKE2_VERSION: "{{ RKE2_VERSION }}"
+    INSTALL_RKE2_CHANNEL_URL: "{{ RKE2_CHANNEL_URL }}"
+    INSTALL_RKE2_CHANNEL: "{{ RKE2_CHANNEL }}"
+    INSTALL_RKE2_METHOD: "{{ RKE2_METHOD }}"
+  changed_when: false
+  when: RKE2_VERSION != installed_version
+
+- name: Make sure manifests folders exists
+  ansible.builtin.file:
+    path: "{{ manifest_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  with_items:
+    - "{{ RKE2_DATA_PATH }}/server/manifests"
+    - "{{ RKE2_DATA_PATH }}/agent/pod-manifests"
+  loop_control:
+    loop_var: manifest_dir
+
+- name: Copy Custom Manifests
+  ansible.builtin.template:
+    src: "server-manifests/{{ custom_manifest }}.j2"
+    dest: "{{ RKE2_DATA_PATH }}/server/manifests/{{ custom_manifest }}"
+    owner: root
+    group: root
+    mode: "0644"
+  with_items: "{{ RKE2_CUSTOM_MANIFESTS }}"
+  loop_control:
+    loop_var: custom_manifest
+  when: 
+    - RKE2_CUSTOM_MANIFESTS
+    - inventory_hostname in groups['control_nodes']
+
+
+- name: Download Custom Manifests from URL
+  ansible.builtin.get_url:
+    url: "{{ custom_manifest.repo }}"
+    dest: "{{ RKE2_TMP_DOWNLOAD_DIR }}/{{ custom_manifest.name }}"
+    owner: root
+    group: root
+    mode: "0644"
+  with_items: "{{ RKE2_CUSTOM_MANIFESTS_FROM_URL }}"
+  loop_control:
+    loop_var: custom_manifest
+  when: 
+    - RKE2_CUSTOM_MANIFESTS_FROM_URL
+    - inventory_hostname in groups['control_nodes']
+
+- name: Copy Custom Manifests from URL
+  ansible.builtin.copy:
+    src: "{{ RKE2_TMP_DOWNLOAD_DIR }}/{{ custom_manifest.name }}"
+    dest: "{{ RKE2_DATA_PATH }}/server/manifests/{{ custom_manifest.name }}"
+    owner: root
+    group: root
+    mode: "0644"
+    remote_src: true
+  with_items: "{{ RKE2_CUSTOM_MANIFESTS_FROM_URL }}"
+  loop_control:
+    loop_var: custom_manifest
+  when: 
+    - RKE2_CUSTOM_MANIFESTS_FROM_URL
+    - inventory_hostname in groups['control_nodes']
+
+- name: Copy Static Pods
+  ansible.builtin.copy:
+    src: "agent-manifests/{{ item }}.j2"
+    dest: "{{ RKE2_DATA_PATH }}/agent/pod-manifests/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  with_items: "{{ RKE2_STATIC_PODS }}"
+  when: 
+    - RKE2_STATIC_PODS
+    - inventory_hostname in groups['worker_nodes']
+
+- name: Copy RKE2 environment file
+  ansible.builtin.template:
+    src: rke2_environment.j2
+    dest: "/etc/default/rke2-{{ NODE_TYPE }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: RKE2_ENV_OPTIONS is defined and RKE2_ENV_OPTIONS|length > 0
+
+- name: Delete Temporary Download Directory
+  ansible.builtin.file:
+    path: "{{ RKE2_TMP_DOWNLOAD_DIR }}"
+    state: absent
+
+- name: Populate RKE2 config path for kubectl
+  ansible.builtin.shell: |
+    set -euo pipefail
+
+    for user in $(awk -F':' '/sudo/{print $4}' /etc/group | tr ',' ' '); do
+      if [[ $(grep -qsc .kubectl_alias /home/$user/.bash_aliases) -eq 0 ]]; then
+        echo ". ~/.kubectl_alias" >> "/home/$user/.bash_aliases"
+      fi
+      rm -rf "/home/$user/.kube"
+      mkdir --mode 700 "/home/$user/.kube"
+      ln -sf "{{ RKE2_CONFIG_PATH }}/rke2.yaml" "/home/$user/.kube/config"
+      echo "export KUBECONFIG={{ RKE2_CONFIG_PATH }}/rke2.yaml" > "/home/$user/.kubectl_alias"
+      echo "alias k='/usr/local/bin/kubectl'" >> "/home/$user/.kubectl_alias"
+      chown $user:$user "/home/$user/.kubectl_alias"
+      chown $user:$user "/home/$user/.bash_aliases"
+      chown -R $user:$user "/home/$user/.kube"
+    done
+
+    if [[ $(grep -qsc .kubectl_alias /root/.bash_aliases) -eq 0 ]]; then
+      echo ". ~/.kubectl_alias" >> "/root/.bash_aliases"
+    fi
+    rm -rf "/root/.kube"
+    mkdir --mode 700 "/root/.kube"
+    ln -sf "{{ RKE2_CONFIG_PATH }}/rke2.yaml" "/root/.kube/config"
+    echo "export KUBECONFIG={{ RKE2_CONFIG_PATH }}/rke2.yaml" > "/root/.kubectl_alias"
+    echo "alias k='/usr/local/bin/kubectl'" >> "/root/.kubectl_alias"
+  args:
+    executable: /usr/bin/bash
+  changed_when: false
+  when:
+    - inventory_hostname in groups['control_nodes']
+
+- name: Create symlink for kubectl
+  ansible.builtin.file:
+    state: link
+    force: true
+    src: "{{ RKE2_DATA_PATH }}/bin/kubectl"
+    path: "/usr/local/bin/kubectl"
+  when:
+    - inventory_hostname in groups['control_nodes']

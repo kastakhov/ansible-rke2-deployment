@@ -1,0 +1,41 @@
+---
+CLUSTER:
+  IPv4: "10.42.0.0/16"
+  IPv6: "fd9a:3150:a994:ff00::/56"
+SERVICE:
+  IPv4: "10.43.0.0/16"
+  IPv6: "fd9a:3150:a994:ff00:1::/112"
+
+METALLB:
+  PEERS:
+    - name: "ipv4-a"
+      local_as: 0
+      remote_as: 0
+      peer_ip: 127.0.0.1
+      bfd_profile: bfd
+    - name: "ipv4-b"
+      local_as: 0
+      remote_as: 0
+      peer_ip: 127.0.0.1
+      bfd_profile: bfd
+    - name: "ipv6-a"
+      local_as: 0
+      remote_as: 0
+      peer_ip: ::1
+      bfd_profile: bfd
+    - name: "ipv6-b"
+      local_as: 0
+      remote_as: 0
+      peer_ip: ::1
+      bfd_profile: bfd
+  IP_POOLS:
+    # 1024 IPs
+    - deployment_id: 0
+      name: "rke2-devel-0"
+      ip_ranges:
+        - 10.128.0.0/22
+        - fd97:14a5:62c::/118
+  BFD_PROFILES:
+    - name: bfd
+      receive_interval: 300
+      transmit_interval: 300

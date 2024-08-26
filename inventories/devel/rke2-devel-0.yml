@@ -1,0 +1,92 @@
+---
+rke2_devel:
+  children:
+    control_nodes:
+      hosts:
+        rke2-control-devel-0001:
+          ansible_host: ::1
+          ansible_hostname: rke2-control-devel-0001.local
+          vars:
+            IPv4: 127.0.0.1
+            IPv4_GW: 127.0.0.1
+            IPv4_MASK: 32
+            IPv6: ::1
+            IPv6_GW: ::1
+            IPv6_MASK: 128
+            FIRST_MASTER: true
+            RKE2_TYPE: server
+        rke2-control-devel-0002:
+          ansible_host: ::1
+          ansible_hostname: rke2-control-devel-0002.local
+          vars:
+            IPv4: 127.0.0.1
+            IPv4_GW: 127.0.0.1
+            IPv4_MASK: 32
+            IPv6: ::1
+            IPv6_GW: ::1
+            IPv6_MASK: 128
+            RKE2_TYPE: server
+        rke2-control-devel-0003:
+          ansible_host: ::1
+          ansible_hostname: rke2-control-devel-0003.local
+          vars:
+            IPv4: 127.0.0.1
+            IPv4_GW: 127.0.0.1
+            IPv4_MASK: 32
+            IPv6: ::1
+            IPv6_GW: ::1
+            IPv6_MASK: 128
+            RKE2_TYPE: server
+    worker_nodes:
+      hosts:
+        rke2-worker-devel-0001:
+          ansible_host: ::1
+          ansible_hostname: rke2-worker-devel-0001.local
+          vars:
+            IPv4: 127.0.0.1
+            IPv4_GW: 127.0.0.1
+            IPv4_MASK: 32
+            IPv6: ::1
+            IPv6_GW: ::1
+            IPv6_MASK: 128
+            RKE2_TYPE: agent
+        rke2-worker-devel-0002:
+          ansible_host: ::1
+          ansible_hostname: rke2-worker-devel-0002.local
+          vars:
+            IPv4: 127.0.0.1
+            IPv4_GW: 127.0.0.1
+            IPv4_MASK: 32
+            IPv6: ::1
+            IPv6_GW: ::1
+            IPv6_MASK: 128
+            RKE2_TYPE: agent
+        rke2-worker-devel-0003:
+          ansible_host: ::1
+          ansible_hostname: rke2-worker-devel-0003.local
+          vars:
+            IPv4: 127.0.0.1
+            IPv4_GW: 127.0.0.1
+            IPv4_MASK: 32
+            IPv6: ::1
+            IPv6_GW: ::1
+            IPv6_MASK: 128
+            RKE2_TYPE: agent
+  vars:
+    # Ansible variables
+    ansible_become: true
+    # Cluster variables
+    VIP_IPv4: 127.0.0.1
+    VIP_IPv6: ::1
+    ENV: devel
+    DEPLOYMENT_ID: 0
+    CLUSTER_NAME: RKE2_DEVEL
+    # VMWare variables
+    VMWARE_VM_PARRENT_FOLDER: 'automation/devel'
+    VMWARE_VM_FOLDER: '{{ DEPLOYMENT_ID }}'
+    VMWARE_VM_NETWORK_LABEL: "VM_NETWORK"
+    # VM variables
+    VM_CPU_COUNT: 4
+    VM_CPU_PER_SOCKET: 2
+    VM_RAM_SIZE: 16
+    VM_DISK_SIZE: 32
