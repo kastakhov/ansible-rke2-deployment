@@ -21,6 +21,7 @@ RKE2_CUSTOM_MANIFESTS:
   - metallb-bgp-peers-config.yaml
   - vsphere-csi.yaml
   - vsphere-cpi.yaml
+  - nfs-csi.yaml
   - vsphere-vsan-sc-pvc.yaml
   - rancher-config.yaml
   - rancher-loadbalancer-config.yaml
